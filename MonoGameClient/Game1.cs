@@ -4,6 +4,9 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Cameras;
+using Sprites;
+using Microsoft.Xna.Framework.Audio;
+using GameData;
 
 namespace MonoGameClient
 {
@@ -25,6 +28,9 @@ namespace MonoGameClient
         private Rectangle worldRect;
         private FollowCamera followCamera;
         private bool Joined;
+
+        Player player;
+        private string errorMessage;
 
         public Game1()
         {
@@ -73,23 +79,72 @@ namespace MonoGameClient
 
         private void startGame()
         {
-            
 
             Action<int, int> joined = cJoined;
             proxy.On("joined", joined);
+
+            Action<PlayerData> recievePlayer = clientRecievePlayer;
+            proxy.On("recievePlayer", recievePlayer);
+
+            Action<string> errmess = recieveError;
+            proxy.On("error", errmess);
 
             proxy.Invoke("join");
                         
         }
 
-        private void cJoined(int arg1, int arg2)
+        private void recieveError(string message)
         {
-            worldCoords = new Vector2(arg1, arg2);
+            errorMessage = message;
+        }
+
+        private void clientRecievePlayer(PlayerData playerData)
+        {
+            if(player != null)
+            {
+                player.PlayerInfo = playerData;
+            }
+        }
+
+        private void cJoined(int worldX, int roldY)
+        {
+            worldCoords = new Vector2(worldX, roldY);
             // Setup Camera
             worldRect = new Rectangle(new Point(0, 0), worldCoords.ToPoint());
             followCamera = new FollowCamera(this, Vector2.Zero, worldCoords);
             Joined = true;
             // Setup Player
+            SetupPlayer();
+            proxy.Invoke("getPlayer", new object[] { "Sarah", "Treanor" });
+
+        }
+
+        private void SetupPlayer()
+        {
+            #region Player Setup
+
+            Texture2D[] txs = new Texture2D[5];
+            SoundEffect[] sounds = new SoundEffect[5];
+            txs[(int)Player.DIRECTION.LEFT] = Content.Load<Texture2D>(@"Textures\right");
+            txs[(int)Player.DIRECTION.RIGHT] = Content.Load<Texture2D>(@"Textures\right");
+            txs[(int)Player.DIRECTION.UP] = Content.Load<Texture2D>(@"Textures\up");
+            txs[(int)Player.DIRECTION.DOWN] = Content.Load<Texture2D>(@"Textures\down");
+            txs[(int)Player.DIRECTION.STANDING] = Content.Load<Texture2D>(@"Textures\stand");
+
+
+            for (int i = 0; i < sounds.Length; i++)
+            {
+                sounds[i] = Content.Load<SoundEffect>(@"Audio\PlayerDirection\" + i.ToString());
+            }
+
+
+            player = new Player(txs, sounds, new Vector2(0, 0), 8, 0, 5);
+            player.Position = player.PreviousPosition = new Vector2(GraphicsDevice.Viewport.Width / 2 - player.SpriteWidth / 2,
+                                          GraphicsDevice.Viewport.Height / 2 - player.SpriteHeight / 2);
+
+            //PrevPlayerPosition = player.Position;
+
+            #endregion Player Setup
 
         }
 
@@ -126,7 +181,14 @@ namespace MonoGameClient
 
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
-
+            if (player != null)
+            {
+                player.Update(gameTime);
+                player.Position = Vector2.Clamp(player.Position, 
+                    Vector2.Zero, 
+                    (worldCoords - new Vector2(player.SpriteWidth, player.SpriteHeight)));
+                followCamera.Follow(player);
+            }
             // TODO: Add your update logic here
 
             base.Update(gameTime);
@@ -159,6 +221,8 @@ namespace MonoGameClient
         {
             spriteBatch.Begin(SpriteSortMode.Immediate, null, null, null, null, null, followCamera.CameraTransform);
             spriteBatch.Draw(backGround, worldRect, Color.White);
+            if(player != null)
+                player.Draw(spriteBatch);
             spriteBatch.End();
         }
     }
