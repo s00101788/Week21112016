@@ -8,6 +8,7 @@ using System.IO;
 using CsvHelper;
 using System.Text;
 using GameData;
+using System.Timers;
 
 namespace Week21112016
 {
@@ -33,6 +34,8 @@ namespace Week21112016
         public static List<PlayerData> Players = new List<PlayerData>();
         public static int WorldX = 2000;
         public static int WorldY = 2000;
+        public static TimeSpan countDown = new TimeSpan(0,0,0,10);
+        public static Timer TimeToStart = new Timer(1000);
         public void Hello()
         {
             Clients.All.hello();
@@ -49,10 +52,31 @@ namespace Week21112016
                             p => p.FirstName == FirstName &&
                             p.SecondName == SecondName);
             if (player != null)
+            {
                 Clients.Caller.recievePlayer(player);
+                TimeToStart.Elapsed += TimeToStart_Elapsed;
+                Clients.All.recieveCountDown(countDown.TotalSeconds);
+                TimeToStart.Start();
+              
+            }
             else
                 Clients.Caller.error(" Player does not exist "
                                            + FirstName + " " + SecondName);
+        }
+
+        private void TimeToStart_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            if (countDown.TotalSeconds > 0)
+            {
+                countDown = countDown.Subtract(new TimeSpan(0, 0, 0, 1));
+                Clients.All.recieveCountDown(countDown.TotalSeconds);
+            }
+            else
+            {
+                TimeToStart.Stop();
+                Clients.All.Start();
+            }
+            
         }
     }
 }

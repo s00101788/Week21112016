@@ -30,7 +30,8 @@ namespace MonoGameClient
         private bool Joined;
 
         Player player;
-        private string errorMessage;
+        private string errorMessage = string.Empty;
+        private string timerMessage = string.Empty;
 
         public Game1()
         {
@@ -86,11 +87,19 @@ namespace MonoGameClient
             Action<PlayerData> recievePlayer = clientRecievePlayer;
             proxy.On("recievePlayer", recievePlayer);
 
+            Action<double> recieveCountDown = clientRecieveStartCount;
+            proxy.On("recieveCountDown", recieveCountDown);
+
             Action<string> errmess = recieveError;
             proxy.On("error", errmess);
 
             proxy.Invoke("join");
                         
+        }
+
+        private void clientRecieveStartCount(double count)
+        {
+            timerMessage = "Time to Start " + count.ToString();
         }
 
         private void recieveError(string message)
@@ -106,9 +115,9 @@ namespace MonoGameClient
             }
         }
 
-        private void cJoined(int worldX, int roldY)
+        private void cJoined(int worldX, int WorldY)
         {
-            worldCoords = new Vector2(worldX, roldY);
+            worldCoords = new Vector2(worldX, WorldY);
             // Setup Camera
             worldRect = new Rectangle(new Point(0, 0), worldCoords.ToPoint());
             followCamera = new FollowCamera(this, Vector2.Zero, worldCoords);
@@ -223,6 +232,9 @@ namespace MonoGameClient
             spriteBatch.Draw(backGround, worldRect, Color.White);
             if(player != null)
                 player.Draw(spriteBatch);
+            spriteBatch.End();
+            spriteBatch.Begin();
+            spriteBatch.DrawString(messageFont, timerMessage, new Vector2(20, 20), Color.White);
             spriteBatch.End();
         }
     }
