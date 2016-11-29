@@ -32,6 +32,9 @@ namespace MonoGameClient
         Player player;
         private string errorMessage = string.Empty;
         private string timerMessage = string.Empty;
+        private bool Started = false;
+
+        TimeSpan countDown;
 
         public Game1()
         {
@@ -94,12 +97,21 @@ namespace MonoGameClient
             proxy.On("error", errmess);
 
             proxy.Invoke("join");
-                        
+
+
+            Action Start = GameStarted;
+            proxy.On("Start", Start);
+        }
+
+        private void GameStarted()
+        {
+            Started = true;
         }
 
         private void clientRecieveStartCount(double count)
         {
             timerMessage = "Time to Start " + count.ToString();
+            countDown = new TimeSpan(0, 0, 0, (int)count);
         }
 
         private void recieveError(string message)
@@ -198,9 +210,20 @@ namespace MonoGameClient
                     (worldCoords - new Vector2(player.SpriteWidth, player.SpriteHeight)));
                 followCamera.Follow(player);
             }
+            
+                decrementCount(gameTime.ElapsedGameTime);
+            
             // TODO: Add your update logic here
-
+            //if (!Started)
+            //    proxy.Invoke("getTime");
             base.Update(gameTime);
+        }
+
+        private void decrementCount(TimeSpan elapsedGameTime)
+        {
+            if (countDown.TotalSeconds > 0)
+                countDown = countDown.Subtract(elapsedGameTime);
+            timerMessage = "Time to Start " + countDown.TotalSeconds.ToString();
         }
 
         /// <summary>
